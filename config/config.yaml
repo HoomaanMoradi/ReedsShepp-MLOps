@@ -1,0 +1,7 @@
+data_ingestion:
+  project_id: tidal-velocity-461219-n3
+  bucket_name: "reedsshepp-mlops"
+  train_val_object_name: "triangle_trainvalid.npy"
+  test_object_name: "triangle_test.npy"
+  train_ratio: 0.90
+  artifact_dir: "artifacts"
