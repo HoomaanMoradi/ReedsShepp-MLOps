@@ -5,3 +5,11 @@ data_ingestion:
   test_object_name: "triangle_test.npy"
   train_ratio: 0.90
   artifact_dir: "artifacts"
+
+model_training:
+  max_iter: 1000
+  random_state: 1
+  hidden_layer_sizes: [100,100]
+  top_k: 5
+  early_stop_number: 5
+  learning_rate_init: 0.001
