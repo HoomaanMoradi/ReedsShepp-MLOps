@@ -37,6 +37,7 @@ An end-to-end MLOps implementation for the Reeds-Shepp path planning algorithm, 
    ```
 
 2. **Set up the virtual environment**
+   ```bash
    python -m venv .venv
    source .venv/bin/activate  # On Windows: .venv\Scripts\activate
    pip install -r requirements.txt
@@ -51,17 +52,6 @@ An end-to-end MLOps implementation for the Reeds-Shepp path planning algorithm, 
    
    # Set up application default credentials
    gcloud auth application-default login
-   ```
-
-4. **Set up environment variables**
-   Create a `.env` file in the project root:
-   ```env
-   # Google Cloud settings
-   GOOGLE_APPLICATION_CREDENTIALS=path/to/your/credentials.json
-   GOOGLE_CLOUD_PROJECT=your-project-id
-   
-   # MLflow settings (optional)
-   MLFLOW_TRACKING_URI=http://localhost:5000
    ```
 
 ## 🚦 Usage
