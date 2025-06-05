@@ -1,13 +1,19 @@
-"""Model Training Module for MLPClassifier
+"""Model Training Module for MLPClassifier.
 
-This module handles the training and evaluation of a Multi-layer Perceptron (MLP) classifier
-using scikit-learn. It includes functionality for data loading, model configuration,
-training with early stopping, and performance evaluation with multiple metrics.
+This module provides a comprehensive pipeline for training and evaluating a Multi-layer 
+Perceptron (MLP) classifier using scikit-learn. It handles the complete machine learning 
+workflow including data loading, model configuration, training with early stopping, 
+hyperparameter tuning, and performance evaluation with multiple metrics.
+
+The module is designed to be configurable through YAML configuration files and includes 
+MLflow integration for experiment tracking and model versioning.
 """
 
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 
+import joblib
+import mlflow
 import numpy as np
 import pandas as pd
 from sklearn.metrics import accuracy_score, classification_report
@@ -24,17 +30,19 @@ class ModelTraining:
 
     This class handles the entire workflow from data loading to model evaluation,
     with configurable parameters for model architecture and training process.
-    """
+    It provides a clean interface for training MLP models with support for early
+    stopping, learning rate adaptation, and comprehensive evaluation.
 
-    """A class to handle the training and evaluation of MLPClassifier models.
-    
-    This class encapsulates the entire model training pipeline including data loading,
-    model building, training, and evaluation with configurable parameters.
-    
     Attributes:
-        model_training_config (dict): Configuration parameters for model training
+        model_training_config (Dict[str, Any]): Configuration parameters for model training
+        data_ingestion_config (Dict[str, Any]): Configuration for data loading
         processed_dir (Path): Directory containing processed data files
         model_output_dir (Path): Directory to save trained models and outputs
+        model_name (str): Name of the model for saving and logging
+        train_path (Path): Path to training data file
+        val_path (Path): Path to validation data file
+        test_path (Path): Path to test data file
+        model_output_path (Path): Full path where the trained model will be saved
     """
 
     def __init__(self, config: Dict[str, Any]) -> None:
@@ -51,6 +59,9 @@ class ModelTraining:
         self.data_ingestion_config = config["data_ingestion"]
         artifact_dir = Path(self.data_ingestion_config["artifact_dir"])
         self.processed_dir = artifact_dir / "processed"
+        self.model_output_dir = artifact_dir / "models"
+        self.model_output_dir.mkdir(parents=True, exist_ok=True)
+        self.model_name = self.model_training_config["model_name"]
 
     def load_data(self) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
         """Load training, validation, and test data from processed CSV files.
@@ -277,6 +288,28 @@ class ModelTraining:
 
         return accuracy, top_k_accuracy
 
+    def save(self, model: MLPClassifier) -> None:
+        """Save the trained model to disk using joblib compression.
+
+        The model is saved in the directory specified by model_output_dir with
+        the name specified by model_name. Uses LZMA compression for efficient storage.
+
+        Args:
+            model: The trained MLPClassifier model to be saved
+
+        Side Effects:
+            - Creates or overwrites the model file at model_output_dir/model_name.joblib
+            - Updates model_output_path with the full path to the saved model
+
+        Note:
+            The model is compressed using LZMA with compression level 3,
+            which provides a good balance between compression ratio and speed.
+        """
+        logger.info("Saving the trained model...")
+        self.model_output_path = self.model_output_dir / f"{self.model_name}.joblib"
+        joblib.dump(model, self.model_output_path, compress=("lzma", 3))
+        logger.info(f"Model saved successfully to {self.model_output_path}")
+
     def run(self) -> None:
         """Execute the complete model training and evaluation pipeline.
 
@@ -311,31 +344,55 @@ class ModelTraining:
             - Final metrics are logged before completion
         """
         try:
-            # Data Loading
-            logger.info("=== Starting Model Training Pipeline ===")
-            logger.info("Loading training, validation, and test data...")
-            train_data, val_data, test_data = self.load_data()
+            mlflow.set_experiment("reedsshepp_mlops")
+            with mlflow.start_run():
+                # Initialize MLflow tracking and log configuration
+                logger.info("=== Starting Model Training Pipeline ===")
+                logger.info("Initializing MLflow experiment tracking...")
+                mlflow.set_tag("model_type", self.model_name)
+                mlflow.log_params(self.model_training_config)
+                logger.info(f"Tracking experiment with model: {self.model_name}")
 
-            # Model Building
-            logger.info("\nBuilding model...")
-            model = self.build_model()
+                logger.info("Loading training, validation, and test data...")
+                train_data, val_data, test_data = self.load_data()
+                mlflow.log_artifact(self.train_path, "datasets")
+                mlflow.log_artifact(self.val_path, "datasets")
+                mlflow.log_artifact(self.test_path, "datasets")
 
-            # Model Training
-            logger.info("\nTraining model...")
-            model = self.train(model, train_data, val_data)
+                # Model Building
+                logger.info("\nBuilding model...")
+                model = self.build_model()
 
-            # Model Evaluation
-            logger.info("\nEvaluating model on test data...")
-            accuracy, top_k_accuracy = self.evaluate(model, test_data)
+                # Model Training
+                logger.info("\nTraining model...")
+                model = self.train(model, train_data, val_data)
 
-            # Log final results
-            logger.info("\n=== Training Summary ===")
-            logger.info(f"Final Test Accuracy: {accuracy:.4f}")
-            logger.info(
-                f"Final Top-{self.model_training_config.get('top_k', 5)} "
-                f"Accuracy: {top_k_accuracy:.4f}"
-            )
-            logger.info("Model training and evaluation completed successfully!")
+                # Model Evaluation
+                logger.info("\nEvaluating model on test data...")
+                accuracy, top_k_accuracy = self.evaluate(model, test_data)
+
+                # Log final results and metrics
+                logger.info("\n=== Training Summary ===")
+                final_metrics = {
+                    "final_accuracy": accuracy,
+                    f"top_{self.model_training_config.get('top_k', 5)}_accuracy": top_k_accuracy,
+                }
+
+                for name, value in final_metrics.items():
+                    logger.info(f"{name.replace('_', ' ').title()}: {value:.4f}")
+                    mlflow.log_metric(name, value)
+
+                mlflow.log_metric("accuracy", accuracy)
+                mlflow.log_metric("top_k_accuracy", top_k_accuracy)
+
+                self.save(model)
+
+                mlflow.log_artifact(self.model_output_path, "models")
+                params = model.get_params()
+                mlflow.log_params(params)
+                logger.info("MLflow completed successfully")
+
+                logger.info("Model training and evaluation completed successfully!")
 
         except Exception as e:
             logger.error(f"Error during model training: {str(e)}")

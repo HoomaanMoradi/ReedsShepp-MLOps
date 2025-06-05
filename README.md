@@ -1,81 +1,157 @@
-# ReedsShepp-MLOps
+# 🚀 ReedsShepp-MLOps
 
-An end-to-end MLOps implementation for the Reeds-Shepp path planning algorithm, featuring automated data ingestion, processing, model training, and deployment pipelines.
+An end-to-end MLOps implementation for the Reeds-Shepp path planning algorithm, featuring automated data ingestion, processing, model training, and deployment pipelines. This project demonstrates industry best practices for building maintainable and scalable ML systems.
 
-## 🚀 Features
+## 📌 Features
 
-- **ML Pipeline Automation**: Automated workflow from data ingestion to model training
-- **Cloud Storage Integration**: Seamless data handling with Google Cloud Storage
-- **Experiment Tracking**: MLflow integration for experiment tracking and model versioning
-- **Configuration Management**: YAML-based configuration for easy parameter tuning
-- **Modular Architecture**: Clean separation of concerns with dedicated modules
+### Core Functionality
 
-## 🛠️ Tech Stack
+- **Automated ML Pipeline**: End-to-end workflow from data ingestion to model deployment
+- **Cloud-Native**: Seamless integration with Google Cloud Storage for data management
+- **Experiment Tracking**: MLflow integration for tracking experiments, parameters, and metrics
+- **Reproducible Training**: Versioned data, code, and configurations for full reproducibility
+- **Modular Design**: Clean separation of concerns with well-defined interfaces
 
-- **ML Framework**: Scikit-learn
-- **Experiment Tracking**: MLflow
-- **Cloud Storage**: Google Cloud Storage
-- **API**: FastAPI
-- **Configuration**: YAML
-- **Dependency Management**: Poetry (pyproject.toml)
+### Technical Highlights
 
-## 📦 Installation
+- **Robust Configuration**: YAML-based configuration system with validation
+- **Comprehensive Logging**: Structured logging for better observability
+- **Type Safety**: Full type hints throughout the codebase
+- **Testing**: Unit tests for critical components
+- **Documentation**: Comprehensive docstrings and developer guides
 
-1. Clone the repository:
+
+## 🚀 Getting Started
+
+### Prerequisites
+
+- Python 3.8 or higher
+- Google Cloud account (for GCS integration)
+
+### Installation
+
+1. **Clone the repository**
    ```bash
    git clone https://github.com/yourusername/ReedsShepp-MLOps.git
    cd ReedsShepp-MLOps
    ```
 
-2. Set up a virtual environment and install dependencies:
-   ```bash
-   source .venv/bin/activate
-   pip install -r dev-requirements.txt
+2. **Set up the virtual environment**
+   python -m venv .venv
+   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
    pip install -r requirements.txt
+   pip install -r dev-requirements.txt  # For development
    ```
 
-3. Configure Google Cloud credentials (if using GCS):
+3. **Configure Google Cloud** (if using GCS)
+   ```bash
+   # Install Google Cloud SDK
+   gcloud auth login
+   gcloud config set project your-project-id
+   
+   # Set up application default credentials
+   gcloud auth application-default login
+   ```
+
+4. **Set up environment variables**
+   Create a `.env` file in the project root:
+   ```env
+   # Google Cloud settings
+   GOOGLE_APPLICATION_CREDENTIALS=path/to/your/credentials.json
+   GOOGLE_CLOUD_PROJECT=your-project-id
+   
+   # MLflow settings (optional)
+   MLFLOW_TRACKING_URI=http://localhost:5000
+   ```
 
 ## 🚦 Usage
 
-1. Update the configuration in `config/config.yaml` with your project-specific settings.
+### Running the Pipeline
 
-2. Run the complete ML pipeline:
+1. **Update the configuration**
+   Edit `config/config.yaml` with your project-specific settings:
+   ```yaml
+   data_ingestion:
+     project_id: your-project-id
+     bucket_name: your-bucket-name
+     train_val_object_name: data/train_val.npz
+     test_object_name: data/test.npz
+     
+   model_training:
+     max_iter: 1000
+     hidden_layer_sizes: [50, 50]
+     learning_rate_init: 0.001
+   ```
+
+2. **Run the complete ML pipeline**
    ```bash
    python src/main.py
    ```
+
+3. **Monitor the pipeline**
+   - Check the console output for real-time logs
+   - View detailed logs in `logs/` directory
+   - Access MLflow UI: `mlflow ui` (if enabled)
 
 ## 📂 Project Structure
 
 ```
 ReedsShepp-MLOps/
+├── .github/                 # GitHub workflows and templates
 ├── config/
-│   └── config.yaml         # Configuration file
-├── src/
-│   ├── __init__.py
-│   ├── config_reader.py   # Configuration management
-│   ├── data_ingestion.py  # Data loading from GCS
-│   ├── data_processing.py # Data preprocessing
-│   ├── logger.py          # Logging utilities
-│   ├── model_training.py  # Model training logic
-│   └── main.py           # Pipeline orchestration
-├── tests/                 # Unit tests
+│   └── config.yaml         # Main configuration file
+│
+├── logs/                    # Application logs
+│
+├── models/                  # Trained model artifacts
+│
+├── src/                     # Source code
+│   ├── __init__.py          # Package initialization
+│   ├── config_reader.py     # Configuration management
+│   ├── data_ingestion.py    # Data loading and validation
+│   ├── data_processing.py   # Data preprocessing and feature engineering
+│   ├── logger.py            # Logging configuration
+│   ├── model_training.py    # Model training and evaluation
+│   └── main.py              # Pipeline orchestration
+│
+├── .env.example           # Example environment variables
 ├── .gitignore
-├── pyproject.toml         # Project metadata and dependencies
-├── requirements.txt       # Production dependencies
-└── dev-requirements.txt   # Development dependencies
+├── .pre-commit-config.yaml  # Pre-commit hooks
+├── pyproject.toml          # Project metadata and dependencies
+├── requirements.txt        # Production dependencies
+├── dev-requirements.txt    # Development dependencies
+└── README.md              # This file
 ```
 
 ## 🔧 Configuration
 
-Modify `config/config.yaml` to adjust:
-- Data source paths and parameters
-- Model hyperparameters
-- Training settings
-- Cloud storage configurations
+The application is configured through `config/config.yaml`. Key sections include:
+
+### Data Ingestion
+```yaml
+data_ingestion:
+  project_id: your-project-id          # GCP project ID
+  bucket_name: your-bucket-name        # GCS bucket name
+  train_val_object_name: data/train_val.npz  # Training/validation data path in GCS
+  test_object_name: data/test.npz            # Test data path in GCS
+  train_ratio: 0.8                     # Train/validation split ratio
+  artifact_dir: artifacts/raw          # Local directory for downloaded data
+```
+
+### Model Training
+```yaml
+model_training:
+  max_iter: 1000                     # Maximum training iterations
+  random_state: 42                   # Random seed for reproducibility
+  hidden_layer_sizes: [50, 50]     # Network architecture
+  top_k: 5                          # Top-k metrics to track
+  early_stop_number: 5              # Early stopping patience
+  learning_rate_init: 0.001         # Initial learning rate
+  model_name: "nn_50_50"          # Model name for tracking
+```
 
 ## 🙏 Acknowledgments
 
-This project builds upon and adapts code from the following open-source project:
-- [TAP30 Ride Demand MLOps](https://github.com/aaghamohammadi/tap30-ride-demand-mlops) - Used as a reference for MLOps pipeline implementation
+This project builds upon and adapts code from the following open-source projects:
+- [TAP30 Ride Demand MLOps](https://github.com/aaghamohammadi/tap30-ride-demand-mlops)
 
