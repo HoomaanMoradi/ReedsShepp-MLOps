@@ -1,3 +1,11 @@
+![Python Version](https://img.shields.io/badge/python-3.10-blue?logo=python&logoColor=white)
+![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)
+![code style: black](https://img.shields.io/badge/code%20style-black-black)
+![MLflow](https://img.shields.io/badge/MLflow-tracking-blue?logo=mlflow&logoColor=white)
+![FastAPI](https://img.shields.io/badge/api-FastAPI-009688?logo=fastapi&logoColor=white)
+![Docker](https://img.shields.io/badge/docker-ready-blue?logo=docker&logoColor=white)
+![Kubernetes](https://img.shields.io/badge/kubernetes-deployed-blue?logo=kubernetes&logoColor=white)
+
 # 🚀 ReedsShepp-MLOps
 
 An end-to-end MLOps implementation for the Reeds-Shepp path planning algorithm, featuring automated data ingestion, processing, model training, and deployment pipelines. This project demonstrates industry best practices for building maintainable and scalable ML systems.
@@ -25,7 +33,7 @@ An end-to-end MLOps implementation for the Reeds-Shepp path planning algorithm, 
 
 ### Prerequisites
 
-- Python 3.8 or higher
+- Python 3.10.12
 - Google Cloud account (for GCS integration)
 
 ### Installation
