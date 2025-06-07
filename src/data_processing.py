@@ -11,7 +11,7 @@ from typing import Any, Dict, Tuple
 
 import pandas as pd
 
-from logger import get_logger
+from src.logger import get_logger
 
 # Initialize module logger
 logger = get_logger(__name__)

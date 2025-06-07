@@ -148,7 +148,7 @@ model_training:
   model_name: "nn_50_50"          # Model name for tracking
 ```
 
-## 🙏 Acknowledgments
+## 🙏 Acknowledgment
 
 This project builds upon and adapts code from the following open-source projects:
 - [TAP30 Ride Demand MLOps](https://github.com/aaghamohammadi/tap30-ride-demand-mlops)

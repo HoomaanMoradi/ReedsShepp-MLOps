@@ -16,7 +16,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import numpy as np
 from google.cloud import storage
 
-from logger import get_logger
+from src.logger import get_logger
 
 # Initialize module logger
 logger = get_logger(__name__)

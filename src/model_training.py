@@ -20,7 +20,7 @@ from sklearn.metrics import accuracy_score, classification_report
 from sklearn.neural_network import MLPClassifier
 from sklearn.preprocessing import LabelBinarizer
 
-from logger import get_logger
+from src.logger import get_logger
 
 logger = get_logger(__name__)
 
