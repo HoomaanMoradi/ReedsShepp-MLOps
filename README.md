@@ -99,8 +99,6 @@ pip install -e .
    model_training:
      max_iter: 1000
      hidden_layer_sizes: [50, 50]
-     learning_rate_init: 0.001
-   ```
 
 2. **Run the complete ML pipeline**
    ```bash
@@ -111,6 +109,64 @@ pip install -e .
    - Check the console output for real-time logs
    - View detailed logs in `logs/` directory
    - Access MLflow UI: `mlflow ui` (if enabled)
+
+4. **API**
+
+The project includes a FastAPI-based REST API for demand prediction. The API is served at `http://0.0.0.0:8080` by default.
+
+#### API Endpoints
+
+- **GET `/docs`**: Interactive API
+
+You can access the interactive API at: http://0.0.0.0:8080/docs
+
+The documentation interface provides a form for making predictions with the following input fields:
+- `input1`: Angle in radians (0 to π)
+- `input2`: Angle in radians (-π to π)
+- `input3`: Distance (0 to 8.5)
+
+The API returns predictions with class indices and probabilities through the Swagger UI interface.
+
+#### Prediction API Usage
+
+The `/predict` endpoint accepts POST requests with the following JSON payload:
+
+```json
+{
+    "input1": 1.0,    // Angle in radians (0 to π)
+    "input2": 0.0,    // Angle in radians (-π to π)
+    "input3": 8.5     // Distance (0 to 8.5)
+}
+```
+
+The API returns a JSON response with the top-k predictions:
+
+```json
+{
+    "predictions": [
+        {
+            "class_index": 0,
+            "probability": 0.95
+        },
+        {
+            "class_index": 1,
+            "probability": 0.03
+        },
+        // ... additional predictions
+    ]
+}
+```
+
+#### Running the API Server
+
+Start the FastAPI server using:
+```bash
+python web/application.py
+```
+
+The server will start on port 8080 by default. You can access the interactive API at:
+- http://localhost:8080/docs
+
 
 ## 📂 Project Structure
 
@@ -134,6 +190,9 @@ ReedsShepp-MLOps/
 │   ├── data_processing.py   # Data preprocessing and feature engineering
 │   ├── logger.py            # Logging configuration
 │   ├── model_training.py    # Model training and evaluation
+│
+├── web/                     # Web application
+│   └── application.py       # FastAPI application for predictions
 │
 ├── .env.example           # Example environment variables
 ├── .gitignore

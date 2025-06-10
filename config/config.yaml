@@ -14,3 +14,9 @@ model_training:
   early_stop_number: 5
   learning_rate_init: 0.001
   model_name: "nn_50_50"
+
+web:
+  host: "0.0.0.0"
+  port: 8080
+  model_output_dir: "artifacts/models"
+  model_name: "nn_50_50.joblib"
