@@ -1,15 +1,9 @@
 """Data Processing Module for ReedsShepp-MLOps.
 
-This module provides a comprehensive pipeline for processing trajectory datasets,
-including:
-1. Loading raw data from CSV files
-2. Cleaning and transforming data
-3. Ensuring consistent processing across splits
-4. Saving processed data
-
-The module is designed to prevent data leakage by applying identical
-transformations to training, validation, and test datasets. It includes
-robust error handling and logging throughout the processing pipeline.
+This module provides functionality for processing raw trajectory datasets into a format
+suitable for machine learning model training. It handles data loading, cleaning,
+and preparation while ensuring consistent processing across training, validation,
+and test datasets to prevent data leakage.
 """
 
 from pathlib import Path
@@ -79,11 +73,10 @@ class DataProcessing:
             raise
 
     def load_raw_data(self) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-        """Load raw trajectory datasets from CSV files.
+        """Load raw datasets from CSV files in the raw directory.
 
-        This method loads and validates the training, validation, and test datasets
-        from their respective CSV files in the raw directory. It performs basic
-        validation to ensure each file exists and contains data.
+        Loads the training, validation, and test datasets from their respective
+        CSV files. This is the first step in the data processing pipeline.
 
         Returns:
             A tuple containing three pandas DataFrames in order:
@@ -94,16 +87,10 @@ class DataProcessing:
         Raises:
             FileNotFoundError: If any required input file is missing
             pd.errors.EmptyDataError: If any input file is empty
-            pd.errors.ParserError: If CSV parsing fails
 
         Example:
             >>> train, val, test = processor.load_raw_data()
             >>> print(f"Loaded {len(train)} training samples")
-
-        Note:
-            - Expects CSV files with headers: input1, input2, input3, extra, output
-            - Performs basic validation of dataset sizes
-            - Logs detailed statistics about each dataset
         """
         try:
             logger.info(f"Loading raw datasets from {self.raw_dir}")
@@ -129,16 +116,13 @@ class DataProcessing:
             raise
 
     def process_data(
-        self, 
-        train_data: pd.DataFrame, 
-        val_data: pd.DataFrame, 
-        test_data: pd.DataFrame
+        self, train_data: pd.DataFrame, val_data: pd.DataFrame, test_data: pd.DataFrame
     ) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-        """Process and transform all dataset splits consistently.
+        """Apply consistent processing steps to all dataset splits.
 
-        This method ensures identical transformations are applied to all dataset
-        splits to prevent data leakage. It processes each dataset independently
-        while maintaining consistency across splits.
+        Ensures identical transformations are applied to training, validation,
+        and test datasets to prevent data leakage. This method serves as a wrapper
+        around _process_single_dataset to maintain consistency across all splits.
 
         Args:
             train_data: Training dataset to be processed
@@ -146,24 +130,13 @@ class DataProcessing:
             test_data: Test dataset to be processed
 
         Returns:
-            A tuple containing three processed DataFrames in order:
-            - processed_train: Processed training dataset
-            - processed_val: Processed validation dataset
-            - processed_test: Processed test dataset
-
-        Raises:
-            ValueError: If datasets have inconsistent columns after processing
-            Exception: For any other unexpected errors during processing
+            A tuple containing the three processed datasets in order:
+            (processed_train, processed_val, processed_test)
 
         Example:
             >>> train_processed, val_processed, test_processed = processor.process_data(
             ...     train_data, val_data, test_data
             ... )
-
-        Note:
-            - Applies identical transformations to all splits
-            - Verifies consistent columns across all datasets
-            - Maintains original dataset splits throughout processing
         """
         logger.info("Processing dataset splits")
 
@@ -178,16 +151,12 @@ class DataProcessing:
         return train_processed, val_processed, test_processed
 
     def save_to_csv_files(
-        self, 
-        train_data: pd.DataFrame, 
-        val_data: pd.DataFrame, 
-        test_data: pd.DataFrame
+        self, train_data: pd.DataFrame, val_data: pd.DataFrame, test_data: pd.DataFrame
     ) -> None:
-        """Save processed datasets to standardized CSV files.
+        """Save processed datasets to CSV files in the processed directory.
 
-        This method saves the processed datasets to CSV files with consistent
-        formatting and structure. It includes error handling for file operations
-        and provides detailed logging of the save process.
+        Saves the processed training, validation, and test datasets to CSV files
+        with the same base names as the input files but in the processed directory.
 
         Args:
             train_data: Processed training dataset to be saved
@@ -197,18 +166,15 @@ class DataProcessing:
         Raises:
             PermissionError: If there are permission issues when writing files
             OSError: If there are issues writing to the filesystem
-            Exception: For any other unexpected errors during file operations
 
         Example:
             >>> processor.save_to_csv_files(train_df, val_df, test_df)
 
         Note:
-            - Output files are saved to {processed_dir} with filenames:
-              - train.csv
-              - validation.csv
-              - test.csv
-            - Files are saved without index to maintain clean format
-            - Includes detailed logging of save operations
+            Output files will be saved as:
+            - {processed_dir}/train.csv
+            - {processed_dir}/validation.csv
+            - {processed_dir}/test.csv
         """
         try:
             # Define output file paths
@@ -227,25 +193,24 @@ class DataProcessing:
         """Process a single dataset by applying cleaning and transformation steps.
 
         This internal method handles the core data processing operations that should
-        be applied consistently to all dataset splits. It performs the following:
-        1. Removes the 'extra' column if present
-        2. Validates data types and structure
-        3. Applies consistent transformations
+        be applied consistently to all dataset splits. Currently, it removes the 'extra'
+        column if it exists in the dataset.
 
         Args:
             data: Input DataFrame to be processed
 
         Returns:
-            pd.DataFrame: Processed DataFrame with consistent structure
+            Processed DataFrame with specified transformations applied
 
-        Raises:
-            ValueError: If data structure is invalid
-            Exception: For any other unexpected errors during processing
+        Example:
+            >>> processed = processor._process_single_dataset(raw_data)
+            >>> 'extra' in processed.columns
+            False
 
         Note:
-            - This method is called by process_data() for each dataset split
-            - Maintains original DataFrame structure where possible
-            - Performs in-place operations when safe to do so
+            This method should be extended with additional processing steps as needed.
+            All transformations should be stateless and not depend on the full dataset
+            to prevent data leakage.
         """
 
         # Remove the 'extra' column if present
@@ -257,30 +222,20 @@ class DataProcessing:
         return data
 
     def _verify_consistent_columns(
-        self, 
-        train_data: pd.DataFrame, 
-        val_data: pd.DataFrame, 
-        test_data: pd.DataFrame
+        self, train_data: pd.DataFrame, val_data: pd.DataFrame, test_data: pd.DataFrame
     ) -> None:
-        """Verify that all datasets have consistent columns.
+        """Verify that all datasets have the same columns.
 
-        This internal method ensures that training, validation, and test datasets
-        have exactly the same columns after processing. This is crucial for preventing
-        data leakage and ensuring consistent model training.
+        This internal method checks for consistency in column names across all
+        dataset splits. It raises a ValueError if any discrepancies are found.
 
         Args:
-            train_data: Processed training dataset
-            val_data: Processed validation dataset
-            test_data: Processed test dataset
+            train_data: Training dataset to verify
+            val_data: Validation dataset to verify
+            test_data: Test dataset to verify
 
         Raises:
-            ValueError: If datasets have inconsistent columns
-            Exception: For any other unexpected errors during verification
-
-        Note:
-            - Called internally by process_data()
-            - Compares column names and order across all datasets
-            - Logs detailed information about any inconsistencies
+            ValueError: If column names are inconsistent across datasets
         """
         # Get column names from each dataset
         train_cols = set(train_data.columns)

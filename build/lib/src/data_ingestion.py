@@ -1,15 +1,11 @@
 """Data Ingestion Module for ReedsShepp-MLOps.
 
-This module manages the complete data ingestion workflow for the ReedsShepp-MLOps project,
-handling data from acquisition to preprocessing. It provides robust functionality for:
-1. Downloading raw data from Google Cloud Storage (GCS)
-2. Processing and validating data in both NumPy array and text formats
-3. Splitting data into training, validation, and test sets
-4. Saving processed data to standardized CSV files
+This module handles the data ingestion pipeline for the ReedsShepp-MLOps project.
+It provides functionality to download data from Google Cloud Storage, split it into
+training, validation, and test sets, and save the processed data to CSV files.
 
-The module is designed with fault tolerance and comprehensive logging, making it suitable
-for production environments. It supports both compressed and uncompressed data formats
-and includes validation checks to ensure data integrity.
+The module supports both NumPy array and text-based data formats and includes
+comprehensive error handling and logging throughout the data ingestion process.
 """
 
 import random
@@ -62,15 +58,12 @@ class DataIngestion:
     def __init__(self, config: Dict[str, Any]) -> None:
         """Initialize the DataIngestion pipeline with configuration.
 
-        This method sets up the data ingestion pipeline by:
-        1. Validating and extracting configuration parameters
-        2. Setting up Google Cloud Storage connection parameters
-        3. Creating the required directory structure for storing artifacts
+        Sets up the necessary configuration parameters and creates required directories.
 
         Args:
             config: Dictionary containing data ingestion configuration with the
                    following required keys under 'data_ingestion':
-                   - bucket_name: Name of the GCS bucket containing the data
+                   - bucket_name: Name of the GCS bucket
                    - train_val_object_name: Path to training/validation data in GCS
                    - test_object_name: Path to test data in GCS
                    - train_ratio: Ratio for train/validation split (0.0 to 1.0)
@@ -80,7 +73,6 @@ class DataIngestion:
         Raises:
             KeyError: If required configuration keys are missing
             OSError: If artifact directories cannot be created
-            ValueError: If train_ratio is not between 0.0 and 1.0
         """
         try:
             # Extract configuration with type hints
@@ -112,30 +104,23 @@ class DataIngestion:
 
     def download_from_gcp(
         self, bucket_name: str, object_name: str
-    ) -> Union[List[Any], str, None]:
+    ) -> Union[List[Any], str]:
         """Download and parse data from Google Cloud Storage.
 
-        This method attempts to download and parse data from GCS using a two-step process:
-        1. First tries to load as a NumPy array (.npy/.npz)
-        2. Falls back to text parsing if NumPy loading fails
-
-        Supports both compressed and uncompressed NumPy arrays, with automatic detection
-        of NPZ files (compressed NumPy arrays).
+        Attempts to download and parse the data first as a NumPy array (.npy/.npz),
+        falling back to text if NumPy parsing fails. Supports both compressed and
+        uncompressed NumPy arrays.
 
         Args:
             bucket_name: Name of the GCS bucket containing the data
             object_name: Path to the object within the bucket
 
         Returns:
-            Union[List[Any], str]: 
-                - List[Any]: If data was successfully parsed as NumPy array
-                - str: If data was successfully parsed as text
-                - None: If parsing fails in both formats
+            Union[List[Any], str]: Parsed data as a list (if NumPy array) or string
 
         Raises:
             google.cloud.exceptions.GoogleCloudError: If there's an issue with GCS access
-            ValueError: If the downloaded data cannot be parsed in either format
-            UnicodeDecodeError: If text decoding fails
+            ValueError: If the downloaded data cannot be parsed
             Exception: For any other unexpected errors
 
         Example:
@@ -194,14 +179,11 @@ class DataIngestion:
             logger.error(f"Failed to download or process {object_name}: {str(e)}")
             raise
 
-    def download_raw_data(self) -> Tuple[Optional[List[Any]], Optional[List[Any]]]:
+    def download_raw_data(self):
         """Download both training/validation and test datasets from Google Cloud Storage.
 
-        This method implements a fault-tolerant download strategy that:
-        1. Attempts to download both datasets independently
-        2. Collects errors for each download attempt
-        3. Only raises an exception if both downloads fail
-        4. Returns partial results if only one dataset download succeeds
+        This method attempts to download both datasets independently, collecting any
+        errors that occur. It will only raise an exception if both downloads fail.
 
         Returns:
             A tuple containing:
@@ -210,12 +192,10 @@ class DataIngestion:
 
         Raises:
             RuntimeError: If both dataset downloads fail
-            Exception: For any other unexpected errors during download
 
         Note:
-            - This method is designed to be resilient to partial failures
-            - Detailed logging is provided for each download attempt
-            - Returns None for any dataset that fails to download
+            This method is designed to be fault-tolerant - it will still return
+            partial results if only one dataset download succeeds.
         """
         train_val_data = None
         test_data = None
@@ -259,27 +239,17 @@ class DataIngestion:
 
         return train_val_data, test_data
 
-    def split_data(
-        self, 
-        train_val_data: Union[List[Any], str, None], 
-        test_data: Union[List[Any], str, None]
-    ) -> Tuple[List[List[int]], List[List[int]], List[List[int]]]:
+    def split_data(self, train_val_data, test_data):
         """Split and process training/validation and test datasets.
 
-        This method processes raw data by:
-        1. Parsing input data from either list or string format
-        2. Validating row structure (5 columns required)
-        3. Splitting training/validation data according to train_ratio
-        4. Filtering invalid or malformed rows
-        5. Returning processed datasets in consistent format
+        This method handles both list and string input formats, parses the data,
+        validates the structure, and splits it into training, validation, and test sets.
 
         Args:
-            train_val_data: Training and validation data in either format:
-                           - List of lists: Directly used for splitting
-                           - String: Parsed into list of integers by row
-            test_data: Test data in either format:
-                     - List of lists: Directly used
-                     - String: Parsed into list of integers by row
+            train_val_data: Training and validation data in either list or string format.
+                           If string, will be split by newlines and parsed as integers.
+            test_data: Test data in either list or string format. If string, will be
+                     split by newlines and parsed as integers.
 
         Returns:
             A tuple containing three lists of integer lists:
@@ -288,10 +258,9 @@ class DataIngestion:
             - test_data_list: Processed test data
 
         Note:
-            - Data validation ensures exactly 5 columns per row
-            - Empty or invalid rows are logged and filtered out
+            - Only rows with exactly 5 columns are kept
             - Input strings should be newline-separated with space-separated integers
-            - Data is shuffled before splitting to ensure randomness
+            - Empty or invalid rows are logged and filtered out
         """
         train_data = []
         val_data = []
@@ -373,19 +342,12 @@ class DataIngestion:
 
         return train_data, val_data, test_data_list
 
-    def save_to_csv_files(
-        self, 
-        train_data: List[List[int]], 
-        val_data: List[List[int]], 
-        test_data: List[List[int]]
-    ) -> None:
-        """Save the processed datasets to standardized CSV files.
+    def save_to_csv_files(self, train_data, val_data, test_data):
+        """Save the processed datasets to CSV files in the raw data directory.
 
-        This method saves the processed datasets to CSV files with consistent formatting:
-        1. Creates three separate CSV files (train, validation, test)
-        2. Includes standardized header row across all files
-        3. Ensures consistent data formatting
-        4. Provides detailed logging of the save process
+        This method takes the processed training, validation, and test datasets and
+        saves them to separate CSV files in the configured raw data directory. Each
+        file includes a header row and the data rows with consistent formatting.
 
         Args:
             train_data: Training data as a list of lists, where each inner list
@@ -397,16 +359,14 @@ class DataIngestion:
         Raises:
             OSError: If there are issues writing to the filesystem
             ValueError: If any row doesn't have exactly 5 columns
-            Exception: For any other unexpected errors during file operations
 
         Note:
-            - Output files are saved to {raw_dir} with filenames:
-              - train.csv
-              - validation.csv
-              - test.csv
-            - All files include the header: "input1,input2,input3,extra,output"
-            - Empty datasets result in warning messages but no file creation
-            - Provides summary logging of dataset sizes after saving
+            - Output files are saved as:
+              - {raw_dir}/train.csv
+              - {raw_dir}/validation.csv
+              - {raw_dir}/test.csv
+            - All files include the same header row
+            - Empty datasets are skipped with a warning
         """
         # Define CSV header
         header = "input1,input2,input3,extra,output\n"
@@ -434,18 +394,17 @@ class DataIngestion:
     def run(self) -> None:
         """Execute the complete data ingestion pipeline.
 
-        This method orchestrates the entire data ingestion process in a sequential flow:
-        1. Downloads raw data from Google Cloud Storage using download_raw_data()
-        2. Processes and splits the data using split_data()
-        3. Saves the processed datasets to CSV files using save_to_csv_files()
+        This method orchestrates the entire data ingestion process:
+        1. Downloads raw data from Google Cloud Storage
+        2. Splits the data into training, validation, and test sets
+        3. Saves the processed data to CSV files
 
-        The pipeline includes comprehensive error handling and logging at each step,
-        making it suitable for production use. If any critical step fails, the method
-        will raise an exception after logging detailed error information.
+        The pipeline is designed to be fault-tolerant, with detailed logging
+        at each step. If any critical step fails, an exception will be raised
+        after logging the error details.
 
         Raises:
-            RuntimeError: If a critical error occurs during any pipeline step
-            Exception: For any other unexpected errors during execution
+            RuntimeError: If a critical error occurs during the ingestion process
 
         Example:
             >>> from config_reader import read_config
@@ -456,8 +415,6 @@ class DataIngestion:
         Note:
             - Progress and status are logged at appropriate levels (INFO/ERROR)
             - The method is idempotent and can be safely retried on failure
-            - Provides detailed logging of each pipeline step
-            - Returns None on successful completion
         """
         logger.info("=" * 60)
         logger.info("STARTING DATA INGESTION PIPELINE".center(60))

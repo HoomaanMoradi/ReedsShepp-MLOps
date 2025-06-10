@@ -10,6 +10,18 @@
 
 An end-to-end MLOps implementation for the Reeds-Shepp path planning algorithm, featuring automated data ingestion, processing, model training, and deployment pipelines. This project demonstrates industry best practices for building maintainable and scalable ML systems.
 
+## 📦 Installation
+
+Install the package from PyPI:
+```bash
+pip install reedsshepp-mlops
+```
+
+Or install in development mode:
+```bash
+pip install -e .
+```
+
 ## 📌 Features
 
 ### Core Functionality
@@ -36,20 +48,29 @@ An end-to-end MLOps implementation for the Reeds-Shepp path planning algorithm, 
 - Python 3.10.12
 - Google Cloud account (for GCS integration)
 
-### Installation
+## 🚀 Getting Started
+
+### Prerequisites
+
+- Python 3.10.12
+- Google Cloud account (for GCS integration)
+
+### Development Setup
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/ReedsShepp-MLOps.git
+   git clone https://github.com/HoomaanMoradi/ReedsShepp-MLOps.git
    cd ReedsShepp-MLOps
    ```
 
-2. **Set up the virtual environment**
+2. **Set up the development environment**
    ```bash
+   # Create and activate virtual environment
    python -m venv .venv
    source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-   pip install -r requirements.txt
-   pip install -r dev-requirements.txt  # For development
+   
+   # Install package in development mode
+   pip install -e .
    ```
 
 3. **Configure Google Cloud** (if using GCS)
@@ -83,7 +104,7 @@ An end-to-end MLOps implementation for the Reeds-Shepp path planning algorithm, 
 
 2. **Run the complete ML pipeline**
    ```bash
-   python src/main.py
+   python pipeline/run.py
    ```
 
 3. **Monitor the pipeline**
@@ -103,6 +124,9 @@ ReedsShepp-MLOps/
 │
 ├── models/                  # Trained model artifacts
 │
+├── pipeline/                # Pipeline scripts and utilities
+│   └── run.py              # Main pipeline execution script
+│
 ├── src/                     # Source code
 │   ├── __init__.py          # Package initialization
 │   ├── config_reader.py     # Configuration management
@@ -110,7 +134,6 @@ ReedsShepp-MLOps/
 │   ├── data_processing.py   # Data preprocessing and feature engineering
 │   ├── logger.py            # Logging configuration
 │   ├── model_training.py    # Model training and evaluation
-│   └── main.py              # Pipeline orchestration
 │
 ├── .env.example           # Example environment variables
 ├── .gitignore
