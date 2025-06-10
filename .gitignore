@@ -3,3 +3,5 @@ artifacts/
 logs/
 mlruns/
 reedsshepp_mlops.egg-info/
+build/
+dist/
