@@ -10,9 +10,6 @@ COPY . .
 RUN pip install --no-cache-dir --upgrade pip --timeout=300 -i https://mirror-pypi.runflare.com/simple
 RUN pip install --no-cache-dir -e . --timeout=3000 -i https://mirror-pypi.runflare.com/simple
 
-RUN python pipeline/run.py
-
 EXPOSE 8080
 
-CMD ["python", "web/application.py"]
-
+CMD ["/bin/sh", "-c", "python pipeline/run.py && python web/application.py"]

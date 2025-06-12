@@ -29,4 +29,11 @@ jobs:
         with:
           context: .
           push: true
-          tags: hoomaanmoradi/ReedsShepp-MLOps:${{ env.RELEASE_VERSION }}
+          tags: hoomaanmoradi/reedsshepp-mlops:${{ env.RELEASE_VERSION }}
+          file: Dockerfile
+
+      # Test the container with credentials
+      - name: Test Docker container
+        run: |
+          echo "${{ secrets.GOOGLE_CLOUD_CREDENTIALS }}" > gcp-credentials.json
+          docker run --rm -e GOOGLE_APPLICATION_CREDENTIALS=/app/gcp-credentials.json -v $(pwd)/gcp-credentials.json:/app/gcp-credentials.json hoomaanmoradi/reedsshepp-mlops:${{ env.RELEASE_VERSION }}
