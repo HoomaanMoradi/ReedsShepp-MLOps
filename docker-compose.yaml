@@ -1,0 +1,12 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/gcp-credentials.json
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./artifacts:/app/artifacts
+      - ./gcp-credentials.json:/app/gcp-credentials.json 

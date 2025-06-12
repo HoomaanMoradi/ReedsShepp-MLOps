@@ -13,6 +13,7 @@ and includes validation checks to ensure data integrity.
 """
 
 import random
+import os
 from io import BytesIO
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
@@ -60,6 +61,85 @@ class DataIngestion:
     """
 
     def __init__(self, config: Dict[str, Any]) -> None:
+        """Initialize the DataIngestion pipeline with configuration.
+        
+        This method sets up the data ingestion pipeline by:
+        1. Validating and extracting configuration parameters
+        2. Setting up Google Cloud Storage connection parameters
+        3. Creating the required directory structure for storing artifacts
+        4. Ensuring the artifacts directory is mounted from the host
+
+        Args:
+            config: Dictionary containing data ingestion configuration with the
+                   following required keys under 'data_ingestion':
+                   - bucket_name: Name of the GCS bucket containing the data
+                   - train_val_object_name: Path to training/validation data in GCS
+                   - test_object_name: Path to test data in GCS
+                   - train_ratio: Ratio for train/validation split (0.0 to 1.0)
+                   - artifact_dir: Base directory for storing artifacts
+                   - project_id: Optional Google Cloud project ID
+
+        Raises:
+            KeyError: If required configuration keys are missing
+            OSError: If artifact directories cannot be created
+            ValueError: If train_ratio is not between 0.0 and 1.0
+            RuntimeError: If artifacts directory is not mounted from host
+        """
+        try:
+            # Extract configuration with type hints
+            self.data_ingestion_config: Dict[str, Any] = config["data_ingestion"]
+            self.project_id: Optional[str] = self.data_ingestion_config.get(
+                "project_id"
+            )
+            self.bucket_name: str = self.data_ingestion_config["bucket_name"]
+            self.train_val_object_name: str = self.data_ingestion_config[
+                "train_val_object_name"
+            ]
+            self.test_object_name: str = self.data_ingestion_config["test_object_name"]
+            self.train_ratio: float = float(self.data_ingestion_config["train_ratio"])
+
+            # Set up directory structure
+            self.artifact_dir: Path = Path(self.data_ingestion_config["artifact_dir"])
+            self.raw_dir: Path = self.artifact_dir / "raw"
+
+            # Check if artifacts directory exists and create it if needed
+            if not self.artifact_dir.exists():
+                try:
+                    # Try to create the directory if it doesn't exist
+                    self.artifact_dir.mkdir(parents=True, exist_ok=True)
+                    logger.info(f"Created artifacts directory at {self.artifact_dir}")
+                except Exception as e:
+                    logger.warning(f"Could not create artifacts directory: {str(e)}")
+                    raise RuntimeError(
+                        f"Failed to create artifacts directory at {self.artifact_dir}. Please ensure you have write permissions."
+                    )
+            
+            # Warn if running in local mode without proper permissions
+            if not self.artifact_dir.is_dir():
+                logger.warning(
+                    "Artifacts directory is not a directory. This might be a security issue if running in Docker."
+                )
+            elif not os.access(str(self.artifact_dir), os.W_OK):
+                logger.warning(
+                    "Artifacts directory is not writable. This might be a security issue if running in Docker."
+                )
+            
+            # Create directories if they don't exist
+            self.raw_dir.mkdir(parents=True, exist_ok=True)
+            logger.debug(f"Initialized DataIngestion with raw_dir={self.raw_dir}")
+
+        except KeyError as e:
+            logger.error(f"Missing required configuration: {e}")
+            raise
+        except OSError as e:
+            logger.error(f"Failed to create directory structure: {e}")
+            raise
+        except ValueError as e:
+            logger.error(f"Invalid configuration value: {e}")
+            raise
+        except RuntimeError as e:
+            logger.error(f"Security check failed: {e}")
+            raise
         """Initialize the DataIngestion pipeline with configuration.
 
         This method sets up the data ingestion pipeline by:
@@ -194,35 +274,123 @@ class DataIngestion:
             logger.error(f"Failed to download or process {object_name}: {str(e)}")
             raise
 
-    def download_raw_data(self) -> Tuple[Optional[List[Any]], Optional[List[Any]]]:
-        """Download both training/validation and test datasets from Google Cloud Storage.
+    def download_raw_data(self) -> Tuple[List[List[int]], List[List[int]]]:
+        """Download and parse CSV data files from GCS if local data not found.
 
-        This method implements a fault-tolerant download strategy that:
-        1. Attempts to download both datasets independently
-        2. Collects errors for each download attempt
-        3. Only raises an exception if both downloads fail
-        4. Returns partial results if only one dataset download succeeds
+        This method first checks for local CSV files in artifacts/raw directory before
+        attempting to download from GCS. If local files are found, it uses those instead
+        of downloading. The CSV files should be named:
+        - train.csv
+        - validation.csv
+        - test.csv
 
         Returns:
             A tuple containing:
-            - train_val_data: Downloaded training/validation data (or None if download failed)
-            - test_data: Downloaded test data (or None if download failed)
+            - train_val_data: List of lists containing training and validation data
+            - test_data: List of lists containing test data
 
         Raises:
-            RuntimeError: If both dataset downloads fail
-            Exception: For any other unexpected errors during download
-
-        Note:
-            - This method is designed to be resilient to partial failures
-            - Detailed logging is provided for each download attempt
-            - Returns None for any dataset that fails to download
+            RuntimeError: If data cannot be loaded from either local files or GCS
+            Exception: For any other unexpected errors during download or parsing
         """
-        train_val_data = None
-        test_data = None
+        train_val_data = []
+        test_data = []
         errors = []
 
+        # Check for local CSV files in artifacts/raw
+        local_train_path = self.raw_dir / "train.csv"
+        local_val_path = self.raw_dir / "validation.csv"
+        local_test_path = self.raw_dir / "test.csv"
+
+        # Try to load local CSV files first
+        if local_train_path.exists() and local_val_path.exists():
+            try:
+                logger.info(f"Found local training data at {local_train_path}")
+                logger.info(f"Found local validation data at {local_val_path}")
+                
+                # Load training data
+                with open(local_train_path, 'r') as f:
+                    train_data = []
+                    # Skip header row
+                    next(f)
+                    for line in f:
+                        try:
+                            # Split line and convert to floats
+                            try:
+                                row = list(map(float, line.strip().split(',')))
+                                if len(row) != 5:  # Ensure each row has exactly 5 columns
+                                    logger.warning(f"Skipping invalid row in train.csv: {line.strip()}")
+                                    continue
+                                train_data.append(row)
+                            except ValueError as e:
+                                logger.warning(f"Error parsing row in train.csv: {line.strip()} - {str(e)}")
+                                continue
+                        except Exception as e:
+                            logger.warning(f"Error parsing row in train.csv: {line.strip()} - {str(e)}")
+                            continue
+                
+                # Load validation data
+                with open(local_val_path, 'r') as f:
+                    val_data = []
+                    # Skip header row
+                    next(f)
+                    for line in f:
+                        try:
+                            # Split line and convert to floats
+                            try:
+                                row = list(map(float, line.strip().split(',')))
+                                if len(row) != 5:  # Ensure each row has exactly 5 columns
+                                    logger.warning(f"Skipping invalid row in validation.csv: {line.strip()}")
+                                    continue
+                                val_data.append(row)
+                            except ValueError as e:
+                                logger.warning(f"Error parsing row in validation.csv: {line.strip()} - {str(e)}")
+                                continue
+                        except Exception as e:
+                            logger.warning(f"Error parsing row in validation.csv: {line.strip()} - {str(e)}")
+                            continue
+                
+                # Combine train and validation data
+                train_val_data = train_data + val_data
+                logger.info(f"Successfully loaded {len(train_val_data)} training/validation samples from local files")
+            except Exception as e:
+                logger.warning(f"Failed to load local training/validation data: {str(e)}")
+                train_val_data = []
+
+        if local_test_path.exists():
+            try:
+                logger.info(f"Found local test data at {local_test_path}")
+                with open(local_test_path, 'r') as f:
+                    # Skip header row
+                    next(f)
+                    for line in f:
+                        try:
+                            # Split line and convert to floats
+                            try:
+                                row = list(map(float, line.strip().split(',')))
+                                if len(row) != 5:  # Ensure each row has exactly 5 columns
+                                    logger.warning(f"Skipping invalid row in test.csv: {line.strip()}")
+                                    continue
+                                test_data.append(row)
+                            except ValueError as e:
+                                logger.warning(f"Error parsing row in test.csv: {line.strip()} - {str(e)}")
+                                continue
+                        except Exception as e:
+                            logger.warning(f"Error parsing row in test.csv: {line.strip()} - {str(e)}")
+                            continue
+                logger.info(f"Successfully loaded {len(test_data)} test samples from local file")
+            except Exception as e:
+                logger.warning(f"Failed to load local test data: {str(e)}")
+                test_data = []
+
+        # If local data found and successfully loaded, return it
+        if train_val_data or test_data:
+            logger.info("Using local CSV data instead of downloading from GCS")
+            return train_val_data, test_data
+
+        # If no local data found or loading failed, proceed with GCS download
         logger.info(
-            f"Starting data download from GCS bucket '{self.bucket_name}':\n"
+            f"No local data found, downloading from GCS bucket '{self.bucket_name}':\n"
             f"- Training/validation: {self.train_val_object_name}\n"
             f"- Test: {self.test_object_name}"
         )

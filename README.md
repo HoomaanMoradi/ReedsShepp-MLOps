@@ -10,18 +10,6 @@
 
 An end-to-end MLOps implementation for the Reeds-Shepp path planning algorithm, featuring automated data ingestion, processing, model training, and deployment pipelines. This project demonstrates industry best practices for building maintainable and scalable ML systems.
 
-## 📦 Installation
-
-Install the package from PyPI:
-```bash
-pip install reedsshepp-mlops
-```
-
-Or install in development mode:
-```bash
-pip install -e .
-```
-
 ## 📌 Features
 
 ### Core Functionality
@@ -45,14 +33,7 @@ pip install -e .
 
 ### Prerequisites
 
-- Python 3.10.12
-- Google Cloud account (for GCS integration)
-
-## 🚀 Getting Started
-
-### Prerequisites
-
-- Python 3.10.12
+- Python 3.10
 - Google Cloud account (for GCS integration)
 
 ### Development Setup
@@ -73,7 +54,7 @@ pip install -e .
    pip install -e .
    ```
 
-3. **Configure Google Cloud** (if using GCS)
+3. **Configure Google Cloud**
    ```bash
    # Install Google Cloud SDK
    gcloud auth login
@@ -82,6 +63,21 @@ pip install -e .
    # Set up application default credentials
    gcloud auth application-default login
    ```
+
+## 🛡️ Docker Requirements
+
+When using Docker, it's essential to mount your own artifacts directory and GCP credentials:
+
+```yaml
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./artifacts:/app/artifacts  # Mount your own artifacts directory
+      - ./gcp-credentials.json:/app/gcp-credentials.json  # Mount your own GCP credentials
+```
 
 ## 🚦 Usage
 
@@ -108,7 +104,7 @@ pip install -e .
 3. **Monitor the pipeline**
    - Check the console output for real-time logs
    - View detailed logs in `logs/` directory
-   - Access MLflow UI: `mlflow ui` (if enabled)
+   - Access MLflow UI: `mlflow ui`
 
 4. **API**
 
@@ -200,6 +196,8 @@ ReedsShepp-MLOps/
 ├── pyproject.toml          # Project metadata and dependencies
 ├── requirements.txt        # Production dependencies
 ├── dev-requirements.txt    # Development dependencies
+├── Dockerfile              # Container configuration
+├── docker-compose.yaml     # Multi-container orchestration
 └── README.md              # This file
 ```
 

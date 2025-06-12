@@ -3,7 +3,8 @@ artifacts/
 logs/
 *.log
 __pycache__/
-mlruns/
 reedsshepp_mlops.egg-info/
 *.egg-info/
+mlruns/
+.git
 gcp-credentials.json
