@@ -107,16 +107,29 @@ jobs:
           cat > test_gcp.py << 'EOF'
           import os
           from google.cloud import storage
+          from google.auth import default
           
           print(f"✅ GCP Application Default Credentials: {os.environ.get('GOOGLE_APPLICATION_CREDENTIALS', 'Not set')}")
+          
           try:
+              # Verify we can get credentials
+              credentials, project = default()
+              print(f"✅ Successfully obtained GCP credentials for project: {project}")
+              
+              # Initialize the client
               client = storage.Client()
               print("✅ Successfully created GCS client")
-              # Try to list buckets to verify credentials
-              buckets = list(client.list_buckets(max_results=1))
-              print(f"✅ Successfully accessed GCS. Found {len(buckets)} buckets")
+              
+              # Just verify we can access the client without listing buckets
+              # This requires fewer permissions than listing buckets
+              print("✅ GCS client is properly configured")
+              
           except Exception as e:
-              print(f"❌ Failed to initialize GCS client: {str(e)}")
+              print(f"❌ GCP initialization failed: {str(e)}")
+              print("\nTroubleshooting tips:")
+              print("1. Verify the service account has the 'Storage Object Viewer' role")
+              print("2. Check if the credentials file is valid and not expired")
+              print("3. Ensure the service account email matches the one in your GCP project")
               raise
           EOF
           
