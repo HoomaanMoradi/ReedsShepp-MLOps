@@ -103,17 +103,30 @@ jobs:
 
       - name: Test Docker container
         run: |
-          # Copy the validated credentials to the container
+          # Create a test script
+          cat > test_gcp.py << 'EOF'
+          import os
+          from google.cloud import storage
+          
+          print(f"✅ GCP Application Default Credentials: {os.environ.get('GOOGLE_APPLICATION_CREDENTIALS', 'Not set')}")
+          try:
+              client = storage.Client()
+              print("✅ Successfully created GCS client")
+              # Try to list buckets to verify credentials
+              buckets = list(client.list_buckets(max_results=1))
+              print(f"✅ Successfully accessed GCS. Found {len(buckets)} buckets")
+          except Exception as e:
+              print(f"❌ Failed to initialize GCS client: {str(e)}")
+              raise
+          EOF
+          
+          # Copy the test script and credentials to the container
           docker run --rm \
             -e GOOGLE_APPLICATION_CREDENTIALS=/app/gcp-credentials.json \
             -v "$GITHUB_WORKSPACE/gcp-credentials.json:/app/gcp-credentials.json" \
+            -v "$GITHUB_WORKSPACE/test_gcp.py:/app/test_gcp.py" \
             ${{ env.DOCKER_IMAGE }}:${{ env.RELEASE_VERSION }} \
-            python -c "\
-              import os; \
-              from google.cloud import storage; \
-              print(f'✅ GCP Application Default Credentials: {os.environ.get(\"GOOGLE_APPLICATION_CREDENTIALS\", \"Not set\")}'); \
-              print(f'✅ GCS Client initialized: {storage.Client() is not None}')\
-            "
+            python /app/test_gcp.py
 
       - name: Verify Docker container
         run: |
