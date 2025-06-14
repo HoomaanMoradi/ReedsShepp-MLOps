@@ -38,18 +38,31 @@ jobs:
         if: github.event_name == 'workflow_dispatch'
         run: echo "RELEASE_VERSION=${{ github.event.inputs.version }}" >> $GITHUB_ENV
 
+      - name: Install jq
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
+
       - name: Validate Google Cloud credentials
         run: |
+          # Check if credentials secret is set
           if [ -z "${{ secrets.GOOGLE_CLOUD_CREDENTIALS }}" ]; then
-            echo "ERROR: GOOGLE_CLOUD_CREDENTIALS secret is not set"
+            echo "::error::GOOGLE_CLOUD_CREDENTIALS secret is not set"
             exit 1
           fi
+          
+          # Write the credentials to file
           echo "${{ secrets.GOOGLE_CLOUD_CREDENTIALS }}" > gcp-credentials.json
-          python -m json.tool gcp-credentials.json > /dev/null || { 
-            echo "ERROR: Invalid JSON in GOOGLE_CLOUD_CREDENTIALS"
-            exit 1 
-          }
+          chmod 644 gcp-credentials.json
+          
+          # Verify the file was created and is valid JSON
+          if ! jq empty gcp-credentials.json >/dev/null 2>&1; then
+            echo "::error::Invalid JSON in GOOGLE_CLOUD_CREDENTIALS"
+            exit 1
+          fi
+          
           echo "✅ GCP credentials are valid"
+          echo "GCP_CREDS_FILE=$(pwd)/gcp-credentials.json" >> $GITHUB_ENV
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
@@ -70,16 +83,21 @@ jobs:
           # Copy the validated credentials to the container
           docker run --rm \
             -e GOOGLE_APPLICATION_CREDENTIALS=/app/gcp-credentials.json \
-            -v $(pwd)/gcp-credentials.json:/app/gcp-credentials.json \
+            -v "$GITHUB_WORKSPACE/gcp-credentials.json:/app/gcp-credentials.json" \
             ${{ env.DOCKER_IMAGE }}:${{ env.RELEASE_VERSION }} \
-            python -c "from google.cloud import storage; print('✅ Successfully initialized GCS client')"
+            python -c "\
+              import os; \
+              from google.cloud import storage; \
+              print(f'✅ GCP Application Default Credentials: {os.environ.get(\"GOOGLE_APPLICATION_CREDENTIALS\", \"Not set\")}'); \
+              print(f'✅ GCS Client initialized: {storage.Client() is not None}')\
+            "
 
       - name: Verify Docker container
         run: |
           # Run a simple health check
           docker run --rm -d --name test-container \
             -e GOOGLE_APPLICATION_CREDENTIALS=/app/gcp-credentials.json \
-            -v $(pwd)/gcp-credentials.json:/app/gcp-credentials.json \
+            -v "$GITHUB_WORKSPACE/gcp-credentials.json:/app/gcp-credentials.json" \
             -p 8080:8080 \
             ${{ env.DOCKER_IMAGE }}:${{ env.RELEASE_VERSION }}
             
@@ -87,7 +105,11 @@ jobs:
           sleep 10
           
           # Check if the container is running
-          docker ps | grep test-container || { echo "Container failed to start"; exit 1; }
+          if ! docker ps | grep -q test-container; then
+            echo "::error::Container failed to start"
+            docker logs test-container || true
+            exit 1
+          fi
           
           # Cleanup
           docker stop test-container
