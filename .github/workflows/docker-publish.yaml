@@ -43,29 +43,49 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y jq
 
-      - name: Validate Google Cloud credentials
+      - name: Setup GCP Credentials
+        id: gcp-creds
         run: |
-          # Write credentials to file first
-          echo "${{ secrets.GOOGLE_CLOUD_CREDENTIALS }}" > gcp-credentials.json
+          # Create a clean credentials file
+          CREDS_FILE="$GITHUB_WORKSPACE/gcp-credentials.json"
           
-          # Verify file was created
-          if [ ! -f gcp-credentials.json ]; then
-            echo "::error::Failed to create gcp-credentials.json"
+          # Remove any existing file
+          rm -f "$CREDS_FILE"
+          
+          # Write the credentials with proper formatting
+          echo '${{ secrets.GOOGLE_CLOUD_CREDENTIALS }}' > "$CREDS_FILE.tmp"
+          
+          # Remove any trailing whitespace and newlines
+          sed -i 's/[\r\n]//g' "$CREDS_FILE.tmp"
+          
+          # Format the JSON with jq and write to final file
+          if ! jq . "$CREDS_FILE.tmp" > "$CREDS_FILE" 2>/tmp/format-error; then
+            echo "::error::Failed to format GCP credentials JSON"
+            cat /tmp/format-error
             exit 1
           fi
           
-          # Make file readable
-          chmod 644 gcp-credentials.json
+          # Cleanup
+          rm -f "$CREDS_FILE.tmp"
           
-          # Validate JSON using jq
-          if ! jq empty gcp-credentials.json 2>/tmp/validate-json-error; then
-            echo "::error::Invalid JSON in GOOGLE_CLOUD_CREDENTIALS"
-            cat /tmp/validate-json-error
+          # Verify the file exists and is valid JSON
+          if [ ! -f "$CREDS_FILE" ]; then
+            echo "::error::Failed to create GCP credentials file"
+            exit 1
+          fi
+          
+          # Set permissions
+          chmod 644 "$CREDS_FILE"
+          
+          # Verify JSON is valid
+          if ! jq empty "$CREDS_FILE" 2>/tmp/validate-error; then
+            echo "::error::Invalid JSON in GCP credentials"
+            cat /tmp/validate-error
             exit 1
           fi
           
           echo "✅ GCP credentials are valid"
-          echo "GCP_CREDS_FILE=$GITHUB_WORKSPACE/gcp-credentials.json" >> $GITHUB_ENV
+          echo "GCP_CREDS_FILE=$CREDS_FILE" >> $GITHUB_ENV
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
