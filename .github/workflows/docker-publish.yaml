@@ -45,24 +45,27 @@ jobs:
 
       - name: Validate Google Cloud credentials
         run: |
-          # Check if credentials secret is set
-          if [ -z "${{ secrets.GOOGLE_CLOUD_CREDENTIALS }}" ]; then
-            echo "::error::GOOGLE_CLOUD_CREDENTIALS secret is not set"
+          # Write credentials to file first
+          echo "${{ secrets.GOOGLE_CLOUD_CREDENTIALS }}" > gcp-credentials.json
+          
+          # Verify file was created
+          if [ ! -f gcp-credentials.json ]; then
+            echo "::error::Failed to create gcp-credentials.json"
             exit 1
           fi
           
-          # Write the credentials to file
-          echo "${{ secrets.GOOGLE_CLOUD_CREDENTIALS }}" > gcp-credentials.json
+          # Make file readable
           chmod 644 gcp-credentials.json
           
-          # Verify the file was created and is valid JSON
-          if ! jq empty gcp-credentials.json >/dev/null 2>&1; then
+          # Validate JSON using jq
+          if ! jq empty gcp-credentials.json 2>/tmp/validate-json-error; then
             echo "::error::Invalid JSON in GOOGLE_CLOUD_CREDENTIALS"
+            cat /tmp/validate-json-error
             exit 1
           fi
           
           echo "✅ GCP credentials are valid"
-          echo "GCP_CREDS_FILE=$(pwd)/gcp-credentials.json" >> $GITHUB_ENV
+          echo "GCP_CREDS_FILE=$GITHUB_WORKSPACE/gcp-credentials.json" >> $GITHUB_ENV
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
