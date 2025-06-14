@@ -78,6 +78,7 @@ class DataIngestion:
                    - train_ratio: Ratio for train/validation split (0.0 to 1.0)
                    - artifact_dir: Base directory for storing artifacts
                    - project_id: Optional Google Cloud project ID
+                   - gcp_credentials_path: Optional path to GCP credentials file (default: /app/gcp-credentials.json)
 
         Raises:
             KeyError: If required configuration keys are missing
@@ -88,15 +89,12 @@ class DataIngestion:
         try:
             # Extract configuration with type hints
             self.data_ingestion_config: Dict[str, Any] = config["data_ingestion"]
-            self.project_id: Optional[str] = self.data_ingestion_config.get(
-                "project_id"
-            )
+            self.project_id: Optional[str] = self.data_ingestion_config.get("project_id")
             self.bucket_name: str = self.data_ingestion_config["bucket_name"]
-            self.train_val_object_name: str = self.data_ingestion_config[
-                "train_val_object_name"
-            ]
+            self.train_val_object_name: str = self.data_ingestion_config["train_val_object_name"]
             self.test_object_name: str = self.data_ingestion_config["test_object_name"]
             self.train_ratio: float = float(self.data_ingestion_config["train_ratio"])
+            self.gcp_credentials_path: str = self.data_ingestion_config.get("gcp_credentials_path", "/app/gcp-credentials.json")
 
             # Set up directory structure
             self.artifact_dir: Path = Path(self.data_ingestion_config["artifact_dir"])
@@ -110,19 +108,20 @@ class DataIngestion:
                     logger.info(f"Created artifacts directory at {self.artifact_dir}")
                 except Exception as e:
                     logger.warning(f"Could not create artifacts directory: {str(e)}")
-                    raise RuntimeError(
-                        f"Failed to create artifacts directory at {self.artifact_dir}. Please ensure you have write permissions."
-                    )
+                    raise RuntimeError(f"Failed to create artifacts directory at {self.artifact_dir}. Please ensure you have write permissions.")
+            
+            # Set GOOGLE_APPLICATION_CREDENTIALS environment variable if credentials file exists
+            if os.path.exists(self.gcp_credentials_path):
+                os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = self.gcp_credentials_path
+                logger.info(f"Using GCP credentials from {self.gcp_credentials_path}")
+            else:
+                logger.warning(f"GCP credentials file not found at {self.gcp_credentials_path}. Trying default application credentials...")
             
             # Warn if running in local mode without proper permissions
             if not self.artifact_dir.is_dir():
-                logger.warning(
-                    "Artifacts directory is not a directory. This might be a security issue if running in Docker."
-                )
+                logger.warning("Artifacts directory is not a directory. This might be a security issue if running in Docker.")
             elif not os.access(str(self.artifact_dir), os.W_OK):
-                logger.warning(
-                    "Artifacts directory is not writable. This might be a security issue if running in Docker."
-                )
+                logger.warning("Artifacts directory is not writable. This might be a security issue if running in Docker.")
             
             # Create directories if they don't exist
             self.raw_dir.mkdir(parents=True, exist_ok=True)
@@ -156,6 +155,7 @@ class DataIngestion:
                    - train_ratio: Ratio for train/validation split (0.0 to 1.0)
                    - artifact_dir: Base directory for storing artifacts
                    - project_id: Optional Google Cloud project ID
+                   - gcp_credentials_path: Optional path to GCP credentials file (default: /app/gcp-credentials.json)
 
         Raises:
             KeyError: If required configuration keys are missing
@@ -165,15 +165,12 @@ class DataIngestion:
         try:
             # Extract configuration with type hints
             self.data_ingestion_config: Dict[str, Any] = config["data_ingestion"]
-            self.project_id: Optional[str] = self.data_ingestion_config.get(
-                "project_id"
-            )
+            self.project_id: Optional[str] = self.data_ingestion_config.get("project_id")
             self.bucket_name: str = self.data_ingestion_config["bucket_name"]
-            self.train_val_object_name: str = self.data_ingestion_config[
-                "train_val_object_name"
-            ]
+            self.train_val_object_name: str = self.data_ingestion_config["train_val_object_name"]
             self.test_object_name: str = self.data_ingestion_config["test_object_name"]
             self.train_ratio: float = float(self.data_ingestion_config["train_ratio"])
+            self.gcp_credentials_path: str = self.data_ingestion_config.get("gcp_credentials_path", "/app/gcp-credentials.json")
 
             # Set up directory structure
             self.artifact_dir: Path = Path(self.data_ingestion_config["artifact_dir"])

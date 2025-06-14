@@ -1,16 +1,25 @@
-name: Build and Push Docker image
+name: Build, Test and Push Docker Image
 
 on:
   release:
     types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to build (e.g., v1.0.0)'
+        required: true
 
 jobs:
-  build-and-push:
+  build-test-push:
     runs-on: ubuntu-latest
-
+    env:
+      DOCKER_IMAGE: hoomaanmoradi/reedsshepp-mlops
+      
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -22,21 +31,63 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Extract version from release
+        if: github.event_name == 'release'
         run: echo "RELEASE_VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+        
+      - name: Set version from workflow dispatch
+        if: github.event_name == 'workflow_dispatch'
+        run: echo "RELEASE_VERSION=${{ github.event.inputs.version }}" >> $GITHUB_ENV
+
+      - name: Validate Google Cloud credentials
+        run: |
+          if [ -z "${{ secrets.GOOGLE_CLOUD_CREDENTIALS }}" ]; then
+            echo "ERROR: GOOGLE_CLOUD_CREDENTIALS secret is not set"
+            exit 1
+          fi
+          echo "${{ secrets.GOOGLE_CLOUD_CREDENTIALS }}" > gcp-credentials.json
+          python -m json.tool gcp-credentials.json > /dev/null || { 
+            echo "ERROR: Invalid JSON in GOOGLE_CLOUD_CREDENTIALS"
+            exit 1 
+          }
+          echo "✅ GCP credentials are valid"
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
-          tags: hoomaanmoradi/reedsshepp-mlops:${{ env.RELEASE_VERSION }}
+          tags: |
+            ${{ env.DOCKER_IMAGE }}:${{ env.RELEASE_VERSION }}
+            ${{ env.DOCKER_IMAGE }}:latest
           file: Dockerfile
-
-      - name: Validate Google Cloud credentials
-        run: |
-          echo "${{ secrets.GOOGLE_CLOUD_CREDENTIALS }}" > gcp-credentials.json
-          python -m json.tool gcp-credentials.json > /dev/null || { echo "Invalid JSON in GOOGLE_CLOUD_CREDENTIALS"; exit 1; }
+          build-args: |
+            BUILDKIT_INLINE_CACHE=1
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Test Docker container
         run: |
-          docker run --rm -e GOOGLE_APPLICATION_CREDENTIALS=/app/gcp-credentials.json -v $(pwd)/gcp-credentials.json:/app/gcp-credentials.json hoomaanmoradi/reedsshepp-mlops:${{ env.RELEASE_VERSION }}
+          # Copy the validated credentials to the container
+          docker run --rm \
+            -e GOOGLE_APPLICATION_CREDENTIALS=/app/gcp-credentials.json \
+            -v $(pwd)/gcp-credentials.json:/app/gcp-credentials.json \
+            ${{ env.DOCKER_IMAGE }}:${{ env.RELEASE_VERSION }} \
+            python -c "from google.cloud import storage; print('✅ Successfully initialized GCS client')"
+
+      - name: Verify Docker container
+        run: |
+          # Run a simple health check
+          docker run --rm -d --name test-container \
+            -e GOOGLE_APPLICATION_CREDENTIALS=/app/gcp-credentials.json \
+            -v $(pwd)/gcp-credentials.json:/app/gcp-credentials.json \
+            -p 8080:8080 \
+            ${{ env.DOCKER_IMAGE }}:${{ env.RELEASE_VERSION }}
+            
+          # Wait for the container to start
+          sleep 10
+          
+          # Check if the container is running
+          docker ps | grep test-container || { echo "Container failed to start"; exit 1; }
+          
+          # Cleanup
+          docker stop test-container
