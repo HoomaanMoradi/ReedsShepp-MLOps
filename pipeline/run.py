@@ -10,10 +10,13 @@ It sequentially coordinates the following stages:
 Example:
     To run the complete pipeline:
     $ python -m pipeline.run
+    or:
+    $ python -m pipeline.run --framework sklearn
 """
 
 import os
 import sys
+import argparse
 
 # Add the project root directory to the Python path
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -22,9 +25,40 @@ sys.path.insert(0, project_root)
 from src.config_reader import read_config
 from src.data_ingestion import DataIngestion
 from src.data_processing import DataProcessing
-from src.model_training import ModelTraining
+from src.model_training_sklearn import ModelTraining as SklearnModelTraining
+from src.model_training_lightning import ModelTraining as LightningModelTraining
+
+def parse_arguments():
+    """Parse command-line arguments for the ReedsShepp path planning pipeline.
+    
+    Returns:
+        argparse.Namespace: Parsed command-line arguments with the following attributes:
+            - framework (str): The ML framework to use for training. Either 'sklearn' or 'lightning'.
+              Defaults to 'lightning' (PyTorch Lightning implementation) if not specified.
+              
+    Example:
+        # PyTorch Lightning (default, no arguments needed):
+        python -m pipeline.run
+        
+        # Scikit-learn (explicitly specified):
+        python -m pipeline.run --framework sklearn
+    """
+    parser = argparse.ArgumentParser(
+        description="ReedsShepp path planning ML pipeline with framework selection"
+    )
+    parser.add_argument(
+        "--framework",
+        type=str,
+        choices=["sklearn", "lightning"],
+        default="lightning",
+        help="ML framework to use (sklearn or lightning, default: lightning)"
+    )
+    return parser.parse_args()
 
 if __name__ == "__main__":
+    # Parse command-line arguments
+    args = parse_arguments()
+
     # Load configuration from YAML file
     config_path = "config/config.yaml"
     config = read_config(config_path)
@@ -41,7 +75,10 @@ if __name__ == "__main__":
 
     # Execute model training stage
     print("Starting model training...")
-    model_training = ModelTraining(config)
+    if args.framework == "sklearn":
+        model_training = SklearnModelTraining(config)
+    else:
+        model_training = LightningModelTraining(config)
     model_training.run()
 
     print("Pipeline execution completed successfully!")

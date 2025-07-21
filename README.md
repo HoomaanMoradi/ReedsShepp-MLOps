@@ -4,7 +4,6 @@
 ![MLflow](https://img.shields.io/badge/MLflow-tracking-blue?logo=mlflow&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/api-FastAPI-009688?logo=fastapi&logoColor=white)
 ![Docker](https://img.shields.io/badge/docker-ready-blue?logo=docker&logoColor=white)
-![Kubernetes](https://img.shields.io/badge/kubernetes-deployed-blue?logo=kubernetes&logoColor=white)
 
 # 🚀 ReedsShepp-MLOps
 
@@ -96,7 +95,25 @@ services:
      max_iter: 1000
      hidden_layer_sizes: [50, 50]
 
-2. **Run the complete ML pipeline**
+2. **Run the ML pipeline**
+   
+   The pipeline supports running with different ML frameworks. By default, it uses PyTorch Lightning:
+   
+   ```bash
+   # Run with PyTorch Lightning (default)
+   python -m pipeline.run
+   
+   # Or explicitly specify PyTorch Lightning
+   python -m pipeline.run --framework lightning
+   
+   # Run with scikit-learn
+   python -m pipeline.run --framework sklearn
+   ```
+   
+   **Command-line Arguments:**
+   - `--framework {lightning,sklearn}`: Choose the ML framework to use (default: lightning)
+
+3. **Run tests**
    ```bash
    python pipeline/run.py
    ```
@@ -185,7 +202,8 @@ ReedsShepp-MLOps/
 │   ├── data_ingestion.py    # Data loading and validation
 │   ├── data_processing.py   # Data preprocessing and feature engineering
 │   ├── logger.py            # Logging configuration
-│   ├── model_training.py    # Model training and evaluation
+│   ├── model_training_sklearn.py    # Scikit-learn model training
+│   ├── model_training_lightning.py  # PyTorch Lightning model training
 │
 ├── web/                     # Web application
 │   └── application.py       # FastAPI application for predictions
@@ -217,15 +235,30 @@ data_ingestion:
 ```
 
 ### Model Training
+
+#### Scikit-learn Configuration
 ```yaml
-model_training:
+model_training_sklearn:
   max_iter: 1000                     # Maximum training iterations
-  random_state: 42                   # Random seed for reproducibility
-  hidden_layer_sizes: [50, 50]     # Network architecture
-  top_k: 5                          # Top-k metrics to track
-  early_stop_number: 5              # Early stopping patience
-  learning_rate_init: 0.001         # Initial learning rate
-  model_name: "nn_50_50"          # Model name for tracking
+  random_state: 1                    # Random seed for reproducibility
+  hidden_layer_sizes: [50, 50]       # Architecture of the neural network
+  top_k: 5                           # Number of top models to save
+  early_stop_number: 5               # Early stopping patience
+  learning_rate_init: 0.001          # Initial learning rate
+  model_name: "nn_50_50_sklearn"     # Base name for saved models
+
+#### PyTorch Lightning Configuration
+```yaml
+model_training_lightning:
+  max_iter: 1000                     # Maximum training iterations
+  random_state: 1                    # Random seed for reproducibility
+  hidden_layer_sizes: [50, 50]       # Architecture of the neural network
+  top_k: 5                           # Number of top models to save
+  early_stop_number: 5               # Early stopping patience
+  learning_rate_init: 0.001          # Initial learning rate
+  model_name: "nn_50_50_lightning"   # Base name for saved models
+  batch_size: 3000                   # Batch size for training
+  num_workers: 4                     # Number of worker processes for data loading
 ```
 
 ## 🙏 Acknowledgment

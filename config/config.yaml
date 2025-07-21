@@ -5,14 +5,25 @@ data_ingestion:
   train_ratio: 0.90
   artifact_dir: "artifacts"
 
-model_training:
+model_training_sklearn:
   max_iter: 1000
   random_state: 1
   hidden_layer_sizes: [50,50]
   top_k: 5
   early_stop_number: 5
   learning_rate_init: 0.001
-  model_name: "nn_50_50"
+  model_name: "nn_50_50_sklearn"
+
+model_training_lightning:
+  max_iter: 1000
+  random_state: 1
+  hidden_layer_sizes: [50,50]
+  top_k: 5
+  early_stop_number: 5
+  learning_rate_init: 0.001
+  model_name: "nn_50_50_lightning"
+  batch_size: 3000
+  num_workers: 4
 
 web:
   host: "0.0.0.0"

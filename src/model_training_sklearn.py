@@ -55,7 +55,7 @@ class ModelTraining:
 
         Creates necessary directories for model outputs if they don't exist.
         """
-        self.model_training_config = config["model_training"]
+        self.model_training_config = config["model_training_sklearn"]
         self.data_ingestion_config = config["data_ingestion"]
         artifact_dir = Path(self.data_ingestion_config["artifact_dir"])
         self.processed_dir = artifact_dir / "processed"
